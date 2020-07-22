@@ -10,6 +10,7 @@ lab3:
 
 
 3b:
+
 自己逻辑：server监测到太长，StartSnapShot 自己缩短log
 
 初始化逻辑： raft被初始化 -> 得到persist的snapshot data  readSnapShot ->  1 check log 截断。 2

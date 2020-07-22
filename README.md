@@ -16,7 +16,8 @@ lab3:
 2.初始化逻辑： raft被初始化 -> 得到persist的snapshot data  readSnapShot ->  1 check log 是否需要截断。 2
 chanApply 加入特殊的 msg  ->   server端 decode得到index, term, db, ack, 装载上次persist的数据
 
-3.leader对于follower的同步逻辑：从appendEntries出发， 如果自己的base都比别人的next大，说明自己log compact过，那么使用snapshot来同步 -> 接收者安装snap，修改自己的log。 同时还涉及到leader退化和更新follower的nextIndex的功能。
+3.leader对于follower的同步逻辑：从appendEntries出发， 如果自己的base都比别人的next大，说明自己log compact过，那么使用snapshot来同步 -> 接收者安装snap，修改自己的log。 chanApply 加入特殊的 msg 更新内容
+同时reply还涉及到leader退化和更新follower的nextIndex的功能。
 
 
 高并发思考：

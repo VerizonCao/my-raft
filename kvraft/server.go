@@ -63,6 +63,7 @@ func (kv *KVServer) AppendEntryToLog(entry Op) bool {
 	kv.mu.Lock()
 
 	//看看有没有这个index 这里也即是说 raft的log顺序和这个resutl的顺序一样
+	//加锁避免和下方的类似操作重复
 	ch, ok := kv.result[index]
 
 	//确保初始化
@@ -72,12 +73,11 @@ func (kv *KVServer) AppendEntryToLog(entry Op) bool {
 	}
 	kv.mu.Unlock()
 
-	//等待 raft来回复。最多等待 1000ms
+
 	select {
 	case op := <-ch:
 		return op == entry   //保持一致 
-	case <-time.After(1000 * time.Millisecond):
-		//log.Printf("timeout\n")
+	case <-time.After(1000 * time.Millisecond):    //等待 raft来回复。最多等待 1000ms
 		return false
 	}
 }
@@ -103,7 +103,8 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	} else {
 		reply.WrongLeader = false
 		reply.Err = OK
-		
+
+		//操作database 需要加锁 避免误操作
 		kv.mu.Lock()
 		reply.Value = kv.db[args.Key] //value从这里拿
 		if !kv.CheckDup(args.Id, args.ReqID){
@@ -191,11 +192,9 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)   //这里很关键 得到 所有的server 自己的序号 persistent 保存 参数 和 applyChannel
 
-	// You may need initialization code here.
 
-	//需要server端始终运行。来接受命令，处理msg
 
-	go func(){
+	go func(){  //需要server端始终运行。来接受命令，处理msg
 
 		for{
 

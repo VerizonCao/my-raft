@@ -255,8 +255,9 @@ type AppendEntriesReply struct {
 // example RequestVote RPC handler.
 //
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
-	// Your code here (2A, 2B).
+	//可能同时受到两个request vote 全程加锁
 
+	// Your code here (2A, 2B).
 	//2A
 	rf.mu.Lock()
 	defer rf.mu.Unlock()

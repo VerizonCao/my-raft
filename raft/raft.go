@@ -177,6 +177,33 @@ func (rf *Raft) readPersist(data []byte) {
 
 func (rf *Raft) readSnapshot(data []byte) {
 
+	rf.readPersist(rf.persister.ReadRaftState())
+
+	if len(data) == 0 {
+		return
+	}
+
+	r := bytes.NewBuffer(data)
+	d := gob.NewDecoder(r)
+
+	var LastIncludedIndex int
+	var LastIncludedTerm int
+
+	d.Decode(&LastIncludedIndex)
+	d.Decode(&LastIncludedTerm)
+
+	rf.commitIndex = LastIncludedIndex
+	rf.lastApplied = LastIncludedIndex
+
+	rf.log = truncateLog(LastIncludedIndex, LastIncludedTerm, rf.log)
+
+	//发送空的一个，为了确保一致性
+	msg := ApplyMsg{UseSnapshot: true, Snapshot: data}
+
+	go func() {
+		rf.chanApply <- msg
+	}()
+
 }
 
 //
@@ -493,7 +520,7 @@ type InstallSnapshotReply struct {
 }
 
 
-//根据snapshot制作新的log entries  然后存储 state 和 snapshot
+//自己监测到log太多，发动的snapshot制作新的log entries  然后存储 state 和 snapshot
 func (rf *Raft) StartSnapshot(snapshot []byte, index int) {
 
 	rf.mu.Lock()
@@ -509,8 +536,6 @@ func (rf *Raft) StartSnapshot(snapshot []byte, index int) {
 	}
 
 	var newLogEntries []LogEntry
-
-
 
 	newLogEntries = append(newLogEntries, LogEntry{LogIndex: index, LogTerm: rf.log[index-baseIndex].LogTerm})
 
@@ -623,7 +648,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
-	//2A
+	//2A  2B
 	index := -1
 	term := rf.currentTerm
 	isLeader := rf.isLeader()
@@ -635,7 +660,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.persist()
 	}
 
-	// Your code here (2B).
 
 	return index, term, isLeader
 }
@@ -733,16 +757,16 @@ func (rf *Raft) boatcastAppendEntries() {
 				args.Entries = make([]LogEntry, len(rf.log[args.PrevLogIndex+1-baseIndex:])) //还是担心不是从0开始
 				copy(args.Entries, rf.log[args.PrevLogIndex+1-baseIndex:])                   //搬运过来
 				args.LeaderCommit = rf.commitIndex
-
+				//开始发送心跳
 				go func(i int, args AppendEntriesArgs) {
 					var reply AppendEntriesReply
 					rf.sendAppendEntries(i, &args, &reply)
 				}(i, args)
-			} else {  //如果他的下一个比我的base还小。那么是使用snapshot 把我自己的已经compact了。需要发送snapshot.
-				//snap
+			} else {  //如果他的下一个比我的base还小。那么是我已经使用了snapshot 。需要发送snapshot.
 				var args InstallSnapshotArgs
 				args.Term = rf.currentTerm
 				args.LeaderId = rf.me
+				//最后被包括进入snapshot的是log的第一个元素
 				args.LastIncludedIndex = rf.log[0].LogIndex
 				args.LastIncludedTerm = rf.log[0].LogTerm
 				args.Data = rf.persister.snapshot
@@ -793,8 +817,9 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanLeader = make(chan bool, 100)
 	rf.chanApply = applyCh
 
-	// 2C   initialize from state persisted before a crash
+	// 2C，3B   initBialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
+	rf.readSnapshot(persister.ReadSnapshot())
 
 	go func() {
 		//无限循环  等待

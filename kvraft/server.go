@@ -1,6 +1,8 @@
 package kvraft
 
 import (
+	"bytes"
+	"encoding/gob"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -9,7 +11,6 @@ import (
 	"../labgob"
 	"../labrpc"
 	"../raft"
-	
 )
 
 const Debug = 0
@@ -197,41 +198,59 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	go func(){
 
 		for{
+
 			//首先 拿取 msg	
 			msg := <-kv.applyCh
-			//分离op
-			op := msg.Command.(Op)
-			kv.mu.Lock()
+			if msg.UseSnapshot{    //当收到snap的msg时候，解压得到index和term，制作db 和 ack。这个是上线后初始化一个server的时候用的
+				var LastIncludedIndex int
+				var LastIncludedTerm int
 
-			//看看这个 是否已经被加入ack
-			if !kv.CheckDup(op.Id,op.ReqId) {
-				kv.Apply(op)
-			}
+				r := bytes.NewBuffer(msg.Snapshot)
+				d := gob.NewDecoder(r)
 
-			//得到那个op的chan
-			ch,ok := kv.result[msg.CommandIndex ]
-			if ok {
-				//反正确保是空的
-				select {
+				kv.mu.Lock()
+				d.Decode(&LastIncludedIndex)
+				d.Decode(&LastIncludedTerm)
+				kv.db = make(map[string]string)
+				kv.ack = make(map[int64]int)
+				d.Decode(&kv.db)
+				d.Decode(&kv.ack)
+				kv.mu.Unlock()
+			}else{
+				//分离op
+				op := msg.Command.(Op)
+				kv.mu.Lock()
+
+				//看看这个 是否已经被加入ack
+				if !kv.CheckDup(op.Id,op.ReqId) {
+					kv.Apply(op)
+				}
+
+				//得到那个op的chan
+				ch,ok := kv.result[msg.CommandIndex ]
+				if ok {
+					//反正确保是空的
+					select {
 					case <-kv.result[msg.CommandIndex ]:
 					default:
+					}
+					ch <- op
+				} else {
+					kv.result[msg.CommandIndex ] = make(chan Op, 1)
 				}
-				ch <- op
-			} else {
-				kv.result[msg.CommandIndex ] = make(chan Op, 1)
-			}
 
-			//need snapshot
-			// if maxraftstate != -1 && kv.rf.GetPerisistSize() > maxraftstate {
-			// 	w := new(bytes.Buffer)
-			// 	e := gob.NewEncoder(w)
-			// 	e.Encode(kv.db)
-			// 	e.Encode(kv.ack)
-			// 	data := w.Bytes()
-			// 	// go kv.rf.StartSnapshot(data,msg.Index)
-			// 	fmt.Println(data)
-			// }
-			kv.mu.Unlock()
+				//当log存储的大小超过限制   we need snapshot
+				if maxraftstate != -1 && kv.rf.GetPerisistSize() > maxraftstate {
+					w := new(bytes.Buffer)
+					e := gob.NewEncoder(w)
+					e.Encode(kv.db)
+					e.Encode(kv.ack)
+					data := w.Bytes()
+					//开启一个snapshotting  消除自己的log
+					go kv.rf.StartSnapshot(data,msg.CommandIndex)
+				}
+				kv.mu.Unlock()
+			}
 		}
 
 	}()

@@ -15,7 +15,7 @@ import "sync"
 type Persister struct {
 	mu        sync.Mutex
 	raftstate []byte //byte存储  的  state
-	snapshot  []byte // 
+	snapshot  []byte //存储snapshot
 }
 
 func MakePersister() *Persister {

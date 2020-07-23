@@ -197,9 +197,10 @@ func (rf *Raft) readSnapshot(data []byte) {
 
 	rf.log = truncateLog(LastIncludedIndex, LastIncludedTerm, rf.log)
 
-	//发送空的一个，为了确保一致性
+
 	msg := ApplyMsg{UseSnapshot: true, Snapshot: data}
 
+	//应用snapshot到server
 	go func() {
 		rf.chanApply <- msg
 	}()
@@ -388,6 +389,8 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			rf.commitIndex = args.LeaderCommit
 		}
 		rf.chanCommit <- true //有新的commit 需要跟新reply    如果去掉 2A test 过不了
+		//这里说明了follower也需要commit，当他检测到了leader已经commit了，他就会commit
+		//他commit的意义何在？修改状态机器，apply传递给server，来修改参数,保持同步。一方面是lab4实现的分布式，一方面leader down了，成为leader
 	}
 	return
 
@@ -604,7 +607,7 @@ func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotR
 	rf.commitIndex = args.LastIncludedIndex
 
 	rf.persist()
-
+	//应用snapshot到server
 	rf.chanApply <- msg
 
 }
@@ -702,7 +705,7 @@ func (rf *Raft) boatcastRequestVote() {
 	rf.mu.Unlock()
 
 	for i := range rf.peers {
-		if i != rf.me && rf.state == Candidate { //自己是candidate并且发送的不是自己
+		if i != rf.me && rf.state == Candidate { //是candidate并且发送的不是自己
 			go func(i int) {
 				var reply RequestVoteReply
 				rf.sendRequestVote(i, &args, &reply)

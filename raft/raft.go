@@ -200,7 +200,7 @@ func (rf *Raft) readSnapshot(data []byte) {
 
 	msg := ApplyMsg{UseSnapshot: true, Snapshot: data}
 
-	//应用snapshot到server
+	//应用snapshot到server  可能阻塞
 	go func() {
 		rf.chanApply <- msg
 	}()
@@ -592,6 +592,8 @@ func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotR
 		return
 	}
 
+	//基本的appendEntries功能
+
 	rf.chanHeartbeat <- true
 	rf.state = Follower
 	rf.currentTerm = args.Term
@@ -599,10 +601,12 @@ func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotR
 
 	rf.persister.SaveSnapshot(args.Data)   //存储 snapshot
 
+	//log的新起点是snap的最后一个
 	rf.log = truncateLog(args.LastIncludedIndex, args.LastIncludedTerm, rf.log)
 
 	msg := ApplyMsg{UseSnapshot: true, Snapshot: args.Data}
 
+	//更新 因为LastIncludedIndex一定比原来的最后log小，直接改为这个。和AppendEntries一样，去较小者
 	rf.lastApplied = args.LastIncludedIndex
 	rf.commitIndex = args.LastIncludedIndex
 

@@ -7,8 +7,8 @@ lab2:
 
 2b：
 
-1. 所有的server都需要commit，当他检测到了leader已经commit了，他就会commit。他commit的意义何在？修改状态机器，apply传递给server，来修改参数,保持同步，如果leader down了，成为leader
-2. 当1 / 2 的 follower replica了。leader才会commit，并只会commit当前term的
+1.所有的server都需要commit，当他检测到了leader已经commit了，他就会commit。他commit的意义何在？修改状态机器，apply传递给server，来修改参数,保持同步，如果leader down了，成为leader
+2.当1 / 2 的 follower replica了。leader才会commit，并只会commit当前term的
 
 
 

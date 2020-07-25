@@ -353,7 +353,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	//如果index没问题  说明 leader 认为的follower的最后的匹配的index是对的
 
 	baseIndex := rf.log[0].LogIndex
-	if args.PrevLogIndex > baseIndex { //check bounds  如果base 是 0， 那根本不用管
+	if args.PrevLogIndex > baseIndex { //check bounds  
 		term := rf.log[args.PrevLogIndex-baseIndex].LogTerm //rf 的 最后一个index的 term
 		//检查这个是否相等
 		if args.PrevLogTerm != term {
@@ -762,7 +762,7 @@ func (rf *Raft) boatcastAppendEntries() {
 				}
 				args.PrevLogTerm = rf.log[args.PrevLogIndex-baseIndex].LogTerm
 				//entry 认为的 follower的没有的 元素
-				args.Entries = make([]LogEntry, len(rf.log[args.PrevLogIndex+1-baseIndex:])) //还是担心不是从0开始
+				args.Entries = make([]LogEntry, len(rf.log[args.PrevLogIndex+1-baseIndex:])) //prev 后面的所有log
 				copy(args.Entries, rf.log[args.PrevLogIndex+1-baseIndex:])                   //搬运过来
 				args.LeaderCommit = rf.commitIndex
 				//开始发送心跳

@@ -38,5 +38,5 @@ chanApply 加入特殊的 msg -> server 端 decode 得到 index, term, db, ack, 
 
 server 端和 raft 的各自功能:
 
-server： 接受 client 的请求，通过 start 发送给 raft，并等待一段时间。 得到 raft 的 apply 后，具体来得到 kv database 的内容，修改内容，回复给 client
-raft： 接收到 server 端指令，需要 appendEntries 到所有的 follower，当超过 1/2 的成员成功 append 了，commit，回复给 server。appendEntries 自带 consistency 属性。
+1. server： 接受 client 的请求，通过 start 发送给 raft，并等待一段时间。 得到 raft 的 apply 后，具体来得到 kv database 的内容，修改内容，回复给 client
+2. raft： 接收到 server 端指令，需要 appendEntries 到所有的 follower，当超过 1/2 的成员成功 append 了，commit，回复给 server。appendEntries 自带 consistency 属性。

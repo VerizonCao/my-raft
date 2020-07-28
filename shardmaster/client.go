@@ -4,7 +4,10 @@ package shardmaster
 // Shardmaster clerk.
 //
 
-import "../labrpc"
+import (
+	"../labrpc"
+	"sync"
+)
 import "time"
 import "crypto/rand"
 import "math/big"
@@ -12,6 +15,10 @@ import "math/big"
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// Your data here.
+	id    int64
+	reqid int //  请求 id  递增
+	mu    sync.Mutex
+
 }
 
 func nrand() int64 {
@@ -25,6 +32,8 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.servers = servers
 	// Your code here.
+	ck.id = nrand() //id 随机选取
+	ck.reqid = 0    //reqid  开始设为 0
 	return ck
 }
 
@@ -37,6 +46,7 @@ func (ck *Clerk) Query(num int) Config {
 		for _, srv := range ck.servers {
 			var reply QueryReply
 			ok := srv.Call("ShardMaster.Query", args, &reply)
+			//找到了leader
 			if ok && reply.WrongLeader == false {
 				return reply.Config
 			}
@@ -45,6 +55,7 @@ func (ck *Clerk) Query(num int) Config {
 	}
 }
 
+//加入一个集群 包含了这几个server
 func (ck *Clerk) Join(servers map[int][]string) {
 	args := &JoinArgs{}
 	// Your code here.

@@ -36,6 +36,8 @@ type Err string
 
 type JoinArgs struct {
 	Servers map[int][]string // new GID -> servers mappings
+	ClientId          int64
+	ReqId       int64
 }
 
 type JoinReply struct {

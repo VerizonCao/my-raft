@@ -44,6 +44,8 @@ lab4b:
 
 处理每个 group 内的容灾，实现基本的 kv server 的功能。当 master 调整 不同的分组和对应的 shards 时，kvshard 通过 rpc 发送 shard 到别的 group。组内成员的同步性问题和 kvRaft 类似。
 
+1. 需要一个组内的 servers 同步迁徙数据，因为本身 server 带有 shard，即部分的数据库。
+
 高并发思考：
 
 1. 因为不同的协程可能同时进入一段代码，比如：如果同时对于 rf.age 进行读写操作，那么会有同步性的问题。或者在 select 内部，如果同时得到了两个 msg，那么对于 rf 的操作也会出现问题。

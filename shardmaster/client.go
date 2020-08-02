@@ -5,20 +5,21 @@ package shardmaster
 //
 
 import (
-	"../labrpc"
+	"crypto/rand"
+	"math/big"
 	"sync"
+	"sync/atomic"
+	"time"
+
+	"../labrpc"
 )
-import "time"
-import "crypto/rand"
-import "math/big"
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// Your data here.
 	id    int64
-	reqid int //  请求 id  递增
+	reqid int64 //  请求 id  递增
 	mu    sync.Mutex
-
 }
 
 func nrand() int64 {
@@ -57,9 +58,11 @@ func (ck *Clerk) Query(num int) Config {
 
 //加入一个集群 包含了这几个server
 func (ck *Clerk) Join(servers map[int][]string) {
-	args := &JoinArgs{}
-	// Your code here.
-	args.Servers = servers
+	args := &JoinArgs{
+		Me:      ck.id,
+		ReqId:   atomic.AddInt64(&ck.reqid, 1),
+		Servers: servers,
+	}
 
 	for {
 		// try each known server.
@@ -75,9 +78,11 @@ func (ck *Clerk) Join(servers map[int][]string) {
 }
 
 func (ck *Clerk) Leave(gids []int) {
-	args := &LeaveArgs{}
-	// Your code here.
-	args.GIDs = gids
+	args := &LeaveArgs{
+		Me:    ck.id,
+		ReqId: atomic.AddInt64(&ck.reqid, 1),
+		GIDs:  gids,
+	}
 
 	for {
 		// try each known server.
@@ -93,10 +98,12 @@ func (ck *Clerk) Leave(gids []int) {
 }
 
 func (ck *Clerk) Move(shard int, gid int) {
-	args := &MoveArgs{}
-	// Your code here.
-	args.Shard = shard
-	args.GID = gid
+	args := &MoveArgs{
+		Me:    ck.id,
+		ReqId: atomic.AddInt64(&ck.reqid, 1),
+		Shard: shard,
+		GID:   gid,
+	}
 
 	for {
 		// try each known server.

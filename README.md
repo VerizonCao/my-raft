@@ -30,11 +30,15 @@ chanApply 加入特殊的 msg -> server 端 decode 得到 index, term, db, ack, 
 3.leader 对于 follower 的同步逻辑：从 appendEntries 出发， 如果自己的 base 都比别人的 next 大，说明自己 log compact 过，那么使用 snapshot 来同步 -> 接收者安装 snap，修改自己的 log。 chanApply 加入特殊的 msg 更新内容
 同时 reply 还涉及到 leader 退化和更新 follower 的 nextIndex 的功能。
 
-
 lab4:
 
-1 server收到raft的消息，然后解析msg得到op。 然后根据不同的业务做不同的处理。 比如put和move需要操作。 get只需要在主协程外的地方加入reply即可
+1 server 收到 raft 的消息，然后解析 msg 得到 op。 然后根据不同的业务做不同的处理。 比如 put 和 move 需要操作(lab4 都需要操作)。 get 只需要在主协程外的地方加入 reply 即可
 
+2 join 需要每个 group 加入 server。如果是之前没有的组，还需要重新调整每个组的分片，需要从最多的组拿取，直到和最多组的差小于等于 1.
+
+3 raft 的情况，比如 shards 的分配和 group 自己没逼数，都是靠 config 来记录
+
+4 总结 lab4a，master 是一个 shards 的管理系统，自身需要保证容灾。负责管理系统的 groups 和负责的 shards，负载均衡
 
 高并发思考：
 
@@ -47,6 +51,5 @@ server 端和 raft 的各自功能:
 1. server： 接受 client 的请求，通过 start 发送给 raft，并等待一段时间。 得到 raft 的 apply 后，具体来得到 kv database 的内容，修改内容，回复给 client
 2. raft： 接收到 server 端指令，需要 appendEntries 到所有的 follower，当超过 1/2 的成员成功 append 了，commit，回复给 server。appendEntries 自带 consistency 属性。
 
-
 todo:
-根据lab4 修改作用
+根据 lab4 修改作用

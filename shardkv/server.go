@@ -1,13 +1,15 @@
 package shardkv
 
-
 // import "../shardmaster"
-import "../labrpc"
-import "../raft"
-import "sync"
-import "../labgob"
+import (
+	"sync"
+	"time"
 
-
+	"../labgob"
+	"../labrpc"
+	"../raft"
+	"../shardmaster"
+)
 
 type Op struct {
 	// Your definitions here.
@@ -20,17 +22,31 @@ type ShardKV struct {
 	me           int
 	rf           *raft.Raft
 	applyCh      chan raft.ApplyMsg
-	make_end     func(string) *labrpc.ClientEnd
-	gid          int
-	masters      []*labrpc.ClientEnd
-	maxraftstate int // snapshot if log grows this big
+	make_end     func(string) *labrpc.ClientEnd //方法 制作end
+	gid          int                            //从属的group
+	masters      []*labrpc.ClientEnd            //servers  猜想是group内的
+	maxraftstate int                            // snapshot if log grows this big
 
 	// Your definitions here.
-}
+	kvs           [shardmaster.NShards]map[string]string //每个shard的database
+	reqIDs        map[int64]int64
+	killChan      chan (bool)
+	killed        bool
+	persister     *raft.Persister
+	logApplyIndex int
 
+	config         shardmaster.Config
+	nextConfig     shardmaster.Config
+	notReadyShards map[int][]int
+
+	deleteShardsNum int
+	mck             *shardmaster.Clerk //连接master的client？
+	timer           *time.Timer
+}
 
 func (kv *ShardKV) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
+
 }
 
 func (kv *ShardKV) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
@@ -47,7 +63,6 @@ func (kv *ShardKV) Kill() {
 	kv.rf.Kill()
 	// Your code here, if desired.
 }
-
 
 //
 // servers[] contains the ports of the servers in this group.
@@ -96,7 +111,6 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
-
 
 	return kv
 }

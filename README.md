@@ -30,7 +30,7 @@ chanApply 加入特殊的 msg -> server 端 decode 得到 index, term, db, ack, 
 3.leader 对于 follower 的同步逻辑：从 appendEntries 出发， 如果自己的 base 都比别人的 next 大，说明自己 log compact 过，那么使用 snapshot 来同步 -> 接收者安装 snap，修改自己的 log。 chanApply 加入特殊的 msg 更新内容
 同时 reply 还涉及到 leader 退化和更新 follower 的 nextIndex 的功能。
 
-lab4:
+lab4a:
 
 1 server 收到 raft 的消息，然后解析 msg 得到 op。 然后根据不同的业务做不同的处理。 比如 put 和 move 需要操作(lab4 都需要操作)。 get 只需要在主协程外的地方加入 reply 即可
 
@@ -39,6 +39,10 @@ lab4:
 3 raft 的情况，比如 shards 的分配和 group 自己没逼数，都是靠 config 来记录
 
 4 总结 lab4a，master 是一个 shards 的管理系统，自身需要保证容灾。负责管理系统的 groups 和负责的 shards，负载均衡
+
+lab4b:
+
+处理每个 group 内的容灾，实现基本的 kv server 的功能。当 master 调整 不同的分组和对应的 shards 时，kvshard 通过 rpc 发送 shard 到别的 group。组内成员的同步性问题和 kvRaft 类似。
 
 高并发思考：
 

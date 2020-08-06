@@ -24,7 +24,7 @@ import (
 // and please do not change it.
 //
 
-//得到一个key的shard
+//得到一个key的shard    这个是简单的一个key的映射。就是a b c对应第一个这样简单的映射
 func key2shard(key string) int {
 	shard := 0
 	if len(key) > 0 {
@@ -43,12 +43,12 @@ func nrand() int64 {
 
 type Clerk struct {
 	sm       *shardmaster.Clerk
-	config   shardmaster.Config
-	make_end func(string) *labrpc.ClientEnd
+	config   shardmaster.Config     //客户端也拥有config 猜想是最新的，方便快速定位group
+	make_end func(string) *labrpc.ClientEnd      //根据server 来得到 具体的server end，发送RPC
 	// You will have to modify this struct.
 
-	me    int64
-	ReqId int64
+	me    int64    //client id
+	ReqId int64		//请求的递增序列
 }
 
 //
@@ -76,6 +76,9 @@ func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 // keeps trying forever in the face of all other errors.
 // You will have to modify this function.
 //
+
+
+//根据自带的config 来得到负责该key的shard的负责group，然后对于每个成员，访问，通过leader来得到answer
 func (ck *Clerk) Get(key string) string {
 	//得到key的shard  写入args
 	shard := key2shard(key)

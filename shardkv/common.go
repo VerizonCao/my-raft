@@ -1,5 +1,7 @@
 package shardkv
 
+import "my-raft/shardmaster"
+
 //
 // Sharded key/value server.
 // Lots of replica groups, each running op-at-a-time paxos.
@@ -47,4 +49,41 @@ type GetReply struct {
 	Err         Err
 	Value       string
 	WrongLeader bool
+}
+
+
+//add
+type ReqShared struct {
+	Shards []int
+	ConfigNum int
+}
+
+type RespShared struct {
+	Successed bool
+	ConfigNum  int
+	Group      int
+	Data    map[int]map[string]string
+	MsgIDs  map[int64] int64
+}
+
+type RespShareds struct {
+	ConfigNum  int
+}
+
+type ReqDeleteShared struct {
+	Shards []int
+	ConfigNum int
+}
+
+type RespDeleteShared struct {
+	Shard int
+	Config shardmaster.Config
+}
+
+
+
+//func
+func (kv *ShardKV) isLeader() bool  {
+	_,rst := kv.rf.GetState()
+	return rst
 }

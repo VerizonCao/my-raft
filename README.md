@@ -25,10 +25,10 @@ Kv server process sequence: clerk sends the request -> server accepts, calls sta
 1. Server logic: the server detects that the persist content of raft is too long, StartSnapShot shortens the log itself
 
 2. Initialization logic: raft is initialized -> get snapshot data of persist readSnapShot -> 1 check log whether it needs to be truncated. 2
-chanApply adds special msg -> server side decode to get index, term, db, ack, and load the last persist data
+   chanApply adds special msg -> server side decode to get index, term, db, ack, and load the last persist data
 
 3. Leader's synchronization logic for follower: starting from appendEntries, if your own base is larger than others' next, it means that you have log compacted, then use snapshot to synchronize -> the receiver installs snap and modifies your log. chanApply adds special msg updates
-At the same time, reply also involves the degeneration of the leader and the function of updating the nextIndex of the follower.
+   At the same time, reply also involves the degeneration of the leader and the function of updating the nextIndex of the follower.
 
 lab4a:
 
@@ -96,15 +96,17 @@ lab4a:
 
 2 join 需要每个 group 加入 server。如果是之前没有的组，还需要重新调整每个组的分片，需要从最多的组拿取，直到和最多组的差小于等于 1.
 
-3 raft 的情况，比如 shards 的分配和 group 自己没逼数，都是靠 config 来记录
+3 raft 的情况，比如 shards 的分配和 group 自己没逼数，都是靠 config 来记录。 这个和之前的 k - v 和 log 也是一样的
 
-4 总结 lab4a，master 是一个 shards 的管理系统，自身需要保证容灾。负责管理系统的 groups 和负责的 shards，负载均衡
+4 总结 lab4a，master 是一个 shards 的管理系统，自身需要保证容灾。负责管理系统的 groups 和负责的 shards，保证负载均衡
 
 lab4b:
 
 处理每个 group 内的容灾，实现基本的 kv server 的功能。当 master 调整 不同的分组和对应的 shards 时，kvshard 通过 rpc 发送 shard 到别的 group。组内成员的同步性问题和 kvRaft 类似。
 
 1. 需要一个组内的 servers 同步迁徙数据，因为本身 server 带有 shard，即部分的数据库。
+
+2. 当 config 发生改变时，需要 server 对于新拥有的 shards 做出处理。
 
 高并发思考：
 

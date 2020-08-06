@@ -234,3 +234,6 @@ func GetCountGroup(Shards *[NShards]int, group int) (rst []int) {
 	}
 	return
 }
+
+
+

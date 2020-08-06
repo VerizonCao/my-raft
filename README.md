@@ -2,6 +2,66 @@
 
 6.824
 
+Record the important points
+
+lab2:
+
+When making raft, the for loop inside the go program is opened indefinitely to detect changes in chan and react. For example, follower detects heartbeat and is ready to become a candidate at any time; leader sends heartbeat; candidate sends vote to check whether it becomes leader
+
+Each term is initiated by election. Initiated by candidate, use rpc to synchronize other raft terms
+
+appendEntries, only send the log after prev Index. If it is empty, then it is a heartbeat
+
+All servers need to commit. When the follower detects that the leader has committed, he will commit. 1. Modify the state machine and apply apply to the server to modify the parameters and keep in sync. If the leader is down, become the leader. 2. When the 1/2 follower replica becomes. The leader will commit, and only commit the current term
+
+lab3:
+
+3a:
+
+Kv server process sequence: clerk sends the request -> server accepts, calls start to add op to log -> raft learned that the leader adjusts the synchronization problem and then starts appendEntries when committing (applyCh has content). -> The server senses it and starts to process the content. -> server completes the task and reply to clerk
+
+3b:
+
+1. Server logic: the server detects that the persist content of raft is too long, StartSnapShot shortens the log itself
+
+2. Initialization logic: raft is initialized -> get snapshot data of persist readSnapShot -> 1 check log whether it needs to be truncated. 2
+chanApply adds special msg -> server side decode to get index, term, db, ack, and load the last persist data
+
+3. Leader's synchronization logic for follower: starting from appendEntries, if your own base is larger than others' next, it means that you have log compacted, then use snapshot to synchronize -> the receiver installs snap and modifies your log. chanApply adds special msg updates
+At the same time, reply also involves the degeneration of the leader and the function of updating the nextIndex of the follower.
+
+lab4a:
+
+1 The server receives the raft message, and then parses msg to obtain op. Then do different processing according to different businesses. For example, put and move require operations (lab4 requires operations). get only needs to add reply outside the main coroutine
+
+2 Join requires each group to join the server. If it is a group that did not exist before, you need to readjust the slices of each group, and you need to take from the most groups until the difference with the most groups is less than or equal to 1.
+
+3 The raft situation, such as the allocation of shards and the group itself are not forced, they are all recorded by config
+
+4 Summary In lab4a, master is a shards management system, and it needs to ensure disaster tolerance. Groups and shards responsible for managing the system, load balancing
+
+lab4b:
+
+Handle disaster recovery in each group and realize the basic functions of kv server. When the master adjusts different groups and corresponding shards, kvshard sends shards to other groups through rpc. The synchronization problem of members in the group is similar to that of kvRaft.
+
+1. The servers in a group are required to synchronize the migration data, because the server itself has a shard, which is part of the database.
+
+High concurrent thinking:
+
+1. Because different coroutines may enter a piece of code at the same time, for example, if you read and write to rf.age at the same time, there will be synchronization problems. Or in select, if you get two msgs at the same time, then there will be problems with the operation of rf.
+2. In other words, only the variables shared by different coroutines need to be locked, such as operating class variables or operating global variables within a function of a class.
+3. Pay attention to go func If there is a for loop outside, then many coroutines are started. Even if there is no for, at least two, because it is parallel to the main function
+
+The respective functions of the server and raft:
+
+1. Server: Accept the client's request, send it to raft through start, and wait for a period of time. After getting the apply of raft, get the content of kv database specifically, modify the content, and reply to the client
+2. raft: After receiving the server command, you need to appendEntries to all the followers. When more than 1/2 of the members successfully append, commit, and reply to the server. appendEntries has its own consistency attribute.
+
+todo:
+Modify the role according to lab4
+
+6.824
+
 记录一下觉得重要的点
 
 lab2:

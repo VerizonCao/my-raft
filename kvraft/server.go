@@ -195,9 +195,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 
 
 	go func(){  //需要server端始终运行。来接受命令，处理msg
-
 		for{
-
 			//首先 拿取 msg	
 			msg := <-kv.applyCh
 			if msg.UseSnapshot{    //当收到snap的msg时候，解压得到index和term，制作db 和 ack。这个是上线后初始化一个server的时候用的

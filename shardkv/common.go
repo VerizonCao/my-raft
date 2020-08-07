@@ -39,6 +39,7 @@ type PutAppendReply struct {
 	WrongLeader bool
 }
 
+
 type GetArgs struct {
 	Key string
 	// You'll have to add definitions here.
@@ -53,20 +54,20 @@ type GetReply struct {
 
 
 //add
-type ReqShared struct {
+type ReqShards struct {
 	Shards []int
 	ConfigNum int
 }
 
-type RespShared struct {
+type RespShards struct {
 	Successed bool
 	ConfigNum  int
 	Group      int
-	Data    map[int]map[string]string
-	MsgIDs  map[int64] int64
+	Data    map[int]map[string]string   // shard -> map: key -> value
+	ReqIDs  map[int64] int64
 }
 
-type RespShareds struct {
+type RespNextConfig struct {
 	ConfigNum  int
 }
 
@@ -82,8 +83,21 @@ type RespDeleteShared struct {
 
 
 
+
+
 //func
 func (kv *ShardKV) isLeader() bool  {
 	_,rst := kv.rf.GetState()
+	return rst
+}
+
+//得到一系列shards的目前从属group
+func GetGroupShards(Shards *[shardmaster.NShards]int, group int) map[int]int {
+	rst := make(map[int]int)
+	for i := 0; i < len(*Shards); i++ {
+		if (*Shards)[i] == group {
+			rst[i] = group
+		}
+	}
 	return rst
 }

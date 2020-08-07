@@ -108,6 +108,8 @@ lab4b:
 
 2. 当 config 发生改变时，需要 server 对于新拥有的 shards 做出处理。
 
+3. master 和 kvShard 的沟通： kvShard定期从master 的 client来得到新的config 然后调整。master server本身接到clerk命令，来修改config，被kvShard得到后运用
+
 高并发思考：
 
 1. 因为不同的协程可能同时进入一段代码，比如：如果同时对于 rf.age 进行读写操作，那么会有同步性的问题。或者在 select 内部，如果同时得到了两个 msg，那么对于 rf 的操作也会出现问题。

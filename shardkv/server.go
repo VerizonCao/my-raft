@@ -38,9 +38,9 @@ type ShardKV struct {
 	me           int
 	rf           *raft.Raft
 	applyCh      chan raft.ApplyMsg
-	make_end     func(string) *labrpc.ClientEnd //方法 根据server id 来制作end
+	make_end     func(string) *labrpc.ClientEnd     //其他组的server
 	gid          int                            //从属的group
-	masters      []*labrpc.ClientEnd            //servers  group内的
+	masters      []*labrpc.ClientEnd             //master 的 clerk
 	maxraftstate int                            // snapshot if log grows this big
 
 	// Your definitions here.
@@ -156,7 +156,7 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 
 func (kv *ShardKV) shardLoop() {
 	for !kv.killed {
-		if !kv.isLeader() {
+		if !kv.isLeader() {   //只要leader
 			time.Sleep(time.Millisecond*50)
 			continue
 		}
@@ -222,7 +222,7 @@ func (kv *ShardKV) onApply(applyMsg raft.ApplyMsg) {
 //跟新config  如果是leader 如果下一个config是config的num
 func (kv *ShardKV) updateConfig()  {
 	if _, isLeader := kv.rf.GetState(); isLeader {
-		if kv.nextConfig.Num == kv.config.Num {
+		if kv.nextConfig.Num == kv.config.Num {   //如果已经同步到最新了，去寻求最新的
 			//请求master的client 来得到config
 			config := kv.mck.Query(kv.nextConfig.Num+1)
 			kv.startConfig(&config)  //然后开始处理config
@@ -234,13 +234,13 @@ func (kv *ShardKV) updateConfig()  {
 func (kv *ShardKV) startConfig(config *shardmaster.Config) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
-	//当得到的config num 大于 next  并且  下一个的等于现在的这个
+	//如果可以被update 并且目前的是最新的
 	if config.Num > kv.nextConfig.Num && kv.nextConfig.Num == kv.config.Num {
 		op := Op {
 			Command : *config, //请求数据
 			Ch : make(chan(interface{})), //日志提交chan
 		}
-		kv.rf.Start(op) //写入Raft  开始同步
+		kv.rf.Start(op) //写入Raft  开始同步   所有的follower都含有这个config
 	}
 }
 

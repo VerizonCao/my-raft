@@ -206,7 +206,7 @@ func (sm *ShardMaster) onApply(applyMsg raft.ApplyMsg) {
 		resp = sm.query(&command)
 	}
 	select {
-	case op.Ch <- resp:
+	case op.Ch <- resp:   //回应给clerk
 	default:
 	}
 }

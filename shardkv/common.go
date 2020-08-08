@@ -1,6 +1,6 @@
 package shardkv
 
-import "my-raft/shardmaster"
+import "../shardmaster"
 
 //
 // Sharded key/value server.
@@ -39,7 +39,6 @@ type PutAppendReply struct {
 	WrongLeader bool
 }
 
-
 type GetArgs struct {
 	Key string
 	// You'll have to add definitions here.
@@ -52,42 +51,37 @@ type GetReply struct {
 	WrongLeader bool
 }
 
-
 //add
 type ReqShards struct {
-	Shards []int
+	Shards    []int
 	ConfigNum int
 }
 
 type RespShards struct {
 	Successed bool
-	ConfigNum  int
-	Group      int
-	Data    map[int]map[string]string   // shard -> map: key -> value
-	ReqIDs  map[int64] int64
+	ConfigNum int
+	Group     int
+	Data      map[int]map[string]string // shard -> map: key -> value
+	ReqIDs    map[int64]int64
 }
 
 type RespNextConfig struct {
-	ConfigNum  int
+	ConfigNum int
 }
 
 type ReqDeleteShared struct {
-	Shards []int
+	Shards    []int
 	ConfigNum int
 }
 
 type RespDeleteShared struct {
-	Shard int
+	Shard  int
 	Config shardmaster.Config
 }
 
-
-
-
-
 //func
-func (kv *ShardKV) isLeader() bool  {
-	_,rst := kv.rf.GetState()
+func (kv *ShardKV) isLeader() bool {
+	_, rst := kv.rf.GetState()
 	return rst
 }
 

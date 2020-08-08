@@ -43,12 +43,12 @@ func nrand() int64 {
 
 type Clerk struct {
 	sm       *shardmaster.Clerk
-	config   shardmaster.Config     //客户端也拥有config 猜想是最新的，方便快速定位group
-	make_end func(string) *labrpc.ClientEnd      //根据server 来得到 具体的server end，发送RPC
+	config   shardmaster.Config             //客户端也拥有config 猜想是最新的，方便快速定位group
+	make_end func(string) *labrpc.ClientEnd //根据server 来得到 具体的server end，发送RPC
 	// You will have to modify this struct.
 
-	me    int64    //client id
-	ReqId int64		//请求的递增序列
+	me    int64 //client id
+	ReqId int64 //请求的递增序列
 }
 
 //
@@ -76,7 +76,6 @@ func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 // keeps trying forever in the face of all other errors.
 // You will have to modify this function.
 //
-
 
 //根据自带的config 来得到负责该key的shard的负责group，然后对于每个成员，访问，通过leader来得到answer
 func (ck *Clerk) Get(key string) string {
@@ -116,6 +115,7 @@ func (ck *Clerk) Get(key string) string {
 // You will have to modify this function.
 //
 func (ck *Clerk) PutAppend(key string, value string, op string) {
+
 	shard := key2shard(key)
 	args := PutAppendArgs{}
 	args.Key = key

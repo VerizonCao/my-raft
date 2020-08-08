@@ -68,7 +68,6 @@ type ApplyMsg struct {
 	Snapshot    []byte // ignore for lab2; only used in lab3
 }
 
-
 //2A   log entry
 type LogEntry struct {
 	LogIndex int
@@ -174,7 +173,6 @@ func (rf *Raft) readPersist(data []byte) {
 
 }
 
-
 func (rf *Raft) readSnapshot(data []byte) {
 
 	rf.readPersist(rf.persister.ReadRaftState())
@@ -196,7 +194,6 @@ func (rf *Raft) readSnapshot(data []byte) {
 	rf.lastApplied = LastIncludedIndex
 
 	rf.log = truncateLog(LastIncludedIndex, LastIncludedTerm, rf.log)
-
 
 	msg := ApplyMsg{UseSnapshot: true, Snapshot: data}
 
@@ -353,7 +350,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	//如果index没问题  说明 leader 认为的follower的最后的匹配的index是对的
 
 	baseIndex := rf.log[0].LogIndex
-	if args.PrevLogIndex > baseIndex { //check bounds  
+	if args.PrevLogIndex > baseIndex { //check bounds
 		term := rf.log[args.PrevLogIndex-baseIndex].LogTerm //rf 的 最后一个index的 term
 		//检查这个是否相等
 		if args.PrevLogTerm != term {
@@ -505,24 +502,22 @@ func (rf *Raft) GetPerisistSize() int {
 	return rf.persister.RaftStateSize()
 }
 
-
 //snapshotting
 type InstallSnapshotArgs struct {
 	Term              int
 	LeaderId          int
 	LastIncludedIndex int
 	LastIncludedTerm  int
-	Data              []byte    //具体的snapshot内容
+	Data              []byte //具体的snapshot内容
 
 	//not used
-	Offset           int
-	Done             bool
+	Offset int
+	Done   bool
 }
 
 type InstallSnapshotReply struct {
 	Term int
 }
-
 
 //自己监测到log太多，发动的snapshot制作新的log entries  然后存储 state 和 snapshot
 func (rf *Raft) StartSnapshot(snapshot []byte, index int) {
@@ -557,9 +552,8 @@ func (rf *Raft) StartSnapshot(snapshot []byte, index int) {
 	e.Encode(newLogEntries[0].LogTerm)
 
 	data := w.Bytes()
-	data = append(data, snapshot...)  
+	data = append(data, snapshot...)
 	rf.persister.SaveSnapshot(data)
-
 
 }
 
@@ -568,7 +562,6 @@ func truncateLog(lastIncludedIndex int, lastIncludedTerm int, log []LogEntry) []
 	var newLogEntries []LogEntry
 	//设置这个为空
 	newLogEntries = append(newLogEntries, LogEntry{LogIndex: lastIncludedIndex, LogTerm: lastIncludedTerm})
-
 
 	//从后往前
 	for index := len(log) - 1; index >= 0; index-- {
@@ -583,7 +576,7 @@ func truncateLog(lastIncludedIndex int, lastIncludedTerm int, log []LogEntry) []
 	return newLogEntries
 }
 
-func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotReply) {
+func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs, reply *InstallSnapshotReply) {
 
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -597,9 +590,9 @@ func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotR
 	rf.chanHeartbeat <- true
 	rf.state = Follower
 	rf.currentTerm = args.Term
-	rf.votedFor = -1    //add by me
+	rf.votedFor = -1 //add by me
 
-	rf.persister.SaveSnapshot(args.Data)   //存储 snapshot
+	rf.persister.SaveSnapshot(args.Data) //存储 snapshot
 
 	//log的新起点是snap的最后一个
 	rf.log = truncateLog(args.LastIncludedIndex, args.LastIncludedTerm, rf.log)
@@ -616,9 +609,8 @@ func (rf *Raft) InstallSnapshot(args InstallSnapshotArgs,reply *InstallSnapshotR
 
 }
 
-
 //发送 snapShot 的命令  让 follower 来操作
-func (rf *Raft) sendInstallSnapshot(server int,args InstallSnapshotArgs,reply *InstallSnapshotReply) bool {
+func (rf *Raft) sendInstallSnapshot(server int, args InstallSnapshotArgs, reply *InstallSnapshotReply) bool {
 
 	ok := rf.peers[server].Call("Raft.InstallSnapshot", args, reply)
 	if ok {
@@ -629,12 +621,11 @@ func (rf *Raft) sendInstallSnapshot(server int,args InstallSnapshotArgs,reply *I
 			return ok
 		}
 
-		rf.NextIndex[server] = args.LastIncludedIndex + 1  
-		rf.matchIndex[server] = args.LastIncludedIndex  //修改为 成功 存入snap的最后的index
+		rf.NextIndex[server] = args.LastIncludedIndex + 1
+		rf.matchIndex[server] = args.LastIncludedIndex //修改为 成功 存入snap的最后的index
 	}
 	return ok
 }
-
 
 //
 // the service using Raft (e.g. a k/v server) wants to start
@@ -667,7 +658,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.log = append(rf.log, LogEntry{LogTerm: term, LogComd: command, LogIndex: index})
 		rf.persist()
 	}
-
 
 	return index, term, isLeader
 }
@@ -770,7 +760,7 @@ func (rf *Raft) boatcastAppendEntries() {
 					var reply AppendEntriesReply
 					rf.sendAppendEntries(i, &args, &reply)
 				}(i, args)
-			} else {  //如果他的下一个比我的base还小。那么是我已经使用了snapshot 。需要发送snapshot.
+			} else { //如果他的下一个比我的base还小。那么是我已经使用了snapshot 。需要发送snapshot.
 				var args InstallSnapshotArgs
 				args.Term = rf.currentTerm
 				args.LeaderId = rf.me
@@ -778,10 +768,10 @@ func (rf *Raft) boatcastAppendEntries() {
 				args.LastIncludedIndex = rf.log[0].LogIndex
 				args.LastIncludedTerm = rf.log[0].LogTerm
 				args.Data = rf.persister.snapshot
-				go func(server int,args InstallSnapshotArgs) {
+				go func(server int, args InstallSnapshotArgs) {
 					reply := &InstallSnapshotReply{}
 					rf.sendInstallSnapshot(server, args, reply)
-				}(i,args)
+				}(i, args)
 
 			}
 		}
@@ -893,7 +883,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 				baseIndex := rf.log[0].LogIndex
 				//从已经appied的到commit的   进行apply  看到这里貌似是  所有server都需要对于一个command 进行
 				for i := rf.lastApplied + 1; i <= commitIndex; i++ {
-					msg := ApplyMsg{CommandValid: true, CommandIndex: i, Command: rf.log[i-baseIndex].LogComd}
+					msg := ApplyMsg{CommandValid: true, CommandIndex: i, Command: rf.log[i-baseIndex].LogComd} //true代表是非snapshot事务
 					applyCh <- msg
 					rf.lastApplied = i //update
 				}

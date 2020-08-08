@@ -10,9 +10,9 @@ When making raft, the for loop inside the go program is opened indefinitely to d
 
 Each term is initiated by election. Initiated by candidate, use rpc to synchronize other raft terms
 
-appendEntries, only send the log after prev Index. If it is empty, then it is a heartbeat
+appendEntries, only send the log after the prev Index. If it is empty, then it is a heartbeat
 
-All servers need to commit. When the follower detects that the leader has committed, he will commit. 1. Modify the state machine and apply apply to the server to modify the parameters and keep in sync. If the leader is down, become the leader. 2. When the 1/2 follower replica becomes. The leader will commit, and only commit the current term
+All servers need to commit. When the follower detects that the leader has committed, he will commit. 1. Modify the state machine and apply apply to the server to modify the parameters and maintain synchronization. The databases of the members of the group need to be kept in sync. If the leader is down, become leader 2. When 1/2 of the follower replica becomes. The leader will commit, and only commit the current term
 
 lab3:
 
@@ -22,12 +22,12 @@ Kv server process sequence: clerk sends the request -> server accepts, calls sta
 
 3b:
 
-1. Server logic: the server detects that the persist content of raft is too long, StartSnapShot shortens the log itself
+1. Server logic: The server detects that the persist content of raft is too long, StartSnapShot shortens the log itself
 
 2. Initialization logic: raft is initialized -> get snapshot data of persist readSnapShot -> 1 check log whether it needs to be truncated. 2
    chanApply adds special msg -> server side decode to get index, term, db, ack, and load the last persist data
 
-3. Leader's synchronization logic for follower: starting from appendEntries, if your own base is larger than others' next, it means that you have log compacted, then use snapshot to synchronize -> the receiver installs snap and modifies your log. chanApply adds special msg updates
+3. The leader's synchronization logic for the follower: starting from appendEntries, if your own base is larger than others' next, it means that you have log compacted, then use snapshot to synchronize -> the receiver installs snap and modifies your log. chanApply adds special msg updates
    At the same time, reply also involves the degeneration of the leader and the function of updating the nextIndex of the follower.
 
 lab4a:
@@ -36,9 +36,9 @@ lab4a:
 
 2 Join requires each group to join the server. If it is a group that did not exist before, you need to readjust the slices of each group, and you need to take from the most groups until the difference with the most groups is less than or equal to 1.
 
-3 The raft situation, such as the allocation of shards and the group itself are not forced, they are all recorded by config
+3 The situation of raft, such as the allocation of shards and the group itself is not forced, all rely on config to record. This is the same as the previous k-v and log
 
-4 Summary In lab4a, master is a shards management system, and it needs to ensure disaster tolerance. Groups and shards responsible for managing the system, load balancing
+4 Summary In lab4a, master is a shards management system, and it needs to ensure disaster tolerance. Responsible for managing the groups and responsible shards of the system to ensure load balance
 
 lab4b:
 
@@ -46,19 +46,20 @@ Handle disaster recovery in each group and realize the basic functions of kv ser
 
 1. The servers in a group are required to synchronize the migration data, because the server itself has a shard, which is part of the database.
 
-High concurrent thinking:
+2. When the config changes, the server needs to deal with the newly owned shards.
+
+3. Communication between master and kvShard: kvShard regularly obtains new config from the master client and then adjusts it. The master server itself receives the clerk command to modify the config, which is used by kvShard
+
+High concurrency thinking:
 
 1. Because different coroutines may enter a piece of code at the same time, for example, if you read and write to rf.age at the same time, there will be synchronization problems. Or in select, if you get two msgs at the same time, then there will be problems with the operation of rf.
-2. In other words, only the variables shared by different coroutines need to be locked, such as operating class variables or operating global variables within a function of a class.
+2. That is to say, only the variables shared by different coroutines need to be locked, such as operating class variables or operating global variables within a function of a class.
 3. Pay attention to go func If there is a for loop outside, then many coroutines are started. Even if there is no for, at least two, because it is parallel to the main function
 
 The respective functions of the server and raft:
 
-1. Server: Accept the client's request, send it to raft through start, and wait for a period of time. After getting the apply of raft, get the content of kv database specifically, modify the content, and reply to the client
-2. raft: After receiving the server command, you need to appendEntries to all the followers. When more than 1/2 of the members successfully append, commit, and reply to the server. appendEntries has its own consistency attribute.
-
-todo:
-Modify the role according to lab4
+1. Server: Accept the client's request, send it to raft through start, and wait for a while. After getting the apply of raft, specifically get the content of kv database, modify the content, and reply to the client
+2. raft: After receiving the server-side command, you need to appendEntries to all followers. When more than 1/2 of the members successfully append, commit and reply to the server. appendEntries has its own consistency attribute.
 
 6.824
 
@@ -72,7 +73,7 @@ make raft 的时候，go 协程序内部的 for 循环无限开启，检测 chan
 
 appendEntries, 只发送 prev Index 后面的 log。如果是空，那么是心跳
 
-所有的 server 都需要 commit，当 follower 检测到了 leader 已经 commit 了，他就会 commit。 1.修改状态机器，apply 传递给 server，来修改参数,保持同步，如果 leader down 了，成为 leader 2.当 1 / 2 的 follower replica 了。leader 才会 commit，并只会 commit 当前 term 的
+所有的 server 都需要 commit，当 follower 检测到了 leader 已经 commit 了，他就会 commit。 1.修改状态机器，apply 传递给 server，来修改参数,保持同步。组内成员的数据库需要保持同步。如果 leader down 了，成为 leader 2.当 1 / 2 的 follower replica 了。leader 才会 commit，并只会 commit 当前 term 的
 
 lab3:
 
@@ -108,7 +109,7 @@ lab4b:
 
 2. 当 config 发生改变时，需要 server 对于新拥有的 shards 做出处理。
 
-3. master 和 kvShard 的沟通： kvShard定期从master 的 client来得到新的config 然后调整。master server本身接到clerk命令，来修改config，被kvShard得到后运用
+3. master 和 kvShard 的沟通： kvShard 定期从 master 的 client 来得到新的 config 然后调整。master server 本身接到 clerk 命令，来修改 config，被 kvShard 得到后运用
 
 高并发思考：
 
@@ -120,6 +121,3 @@ server 端和 raft 的各自功能:
 
 1. server： 接受 client 的请求，通过 start 发送给 raft，并等待一段时间。 得到 raft 的 apply 后，具体来得到 kv database 的内容，修改内容，回复给 client
 2. raft： 接收到 server 端指令，需要 appendEntries 到所有的 follower，当超过 1/2 的成员成功 append 了，commit，回复给 server。appendEntries 自带 consistency 属性。
-
-todo:
-根据 lab4 修改作用

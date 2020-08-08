@@ -31,7 +31,7 @@ type Op struct {
 	Kind  string //"Put" or "Append" "Get"
 	Key   string
 	Value string
-	Id    int64  //clerk的id
+	Id    int64 //clerk的id
 	ReqId int   // 这个clerk的顺序
 }
 
@@ -48,7 +48,7 @@ type KVServer struct {
 
 	db     map[string]string //database  key-value pair
 	ack    map[int64]int     //这个记录了每个clerk的最后一次的申请reqId  需要递增
-	result map[int]chan Op   //对应于每个log的回应 
+	result map[int]chan Op   //对应于每个log的回应
 }
 
 func (kv *KVServer) AppendEntryToLog(entry Op) bool {
@@ -73,18 +73,17 @@ func (kv *KVServer) AppendEntryToLog(entry Op) bool {
 	}
 	kv.mu.Unlock()
 
-
 	select {
 	case op := <-ch:
-		return op == entry   //保持一致 
-	case <-time.After(1000 * time.Millisecond):    //等待 raft来回复。最多等待 1000ms
+		return op == entry //保持一致
+	case <-time.After(1000 * time.Millisecond): //等待 raft来回复。最多等待 1000ms
 		return false
 	}
 }
 func (kv *KVServer) CheckDup(id int64, reqid int) bool {
 	v, ok := kv.ack[id] //得到该client的最后一个 reqId
 	if ok {
-		return v >= reqid   //他比我的新 那么就是重复了
+		return v >= reqid //他比我的新 那么就是重复了
 	}
 	return false
 }
@@ -95,7 +94,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	//新的op  除了value 全部继承 args
 	entry := Op{Kind: "Get", Key: args.Key, Id: args.Id, ReqId: args.ReqID}
 
-	ok := kv.AppendEntryToLog(entry)   //同步  让所有的server 来同步
+	ok := kv.AppendEntryToLog(entry) //同步  让所有的server 来同步
 
 	if !ok {
 		reply.WrongLeader = true
@@ -107,9 +106,9 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 		//操作database 需要加锁 避免误操作
 		kv.mu.Lock()
 		reply.Value = kv.db[args.Key] //value从这里拿
-		if !kv.CheckDup(args.Id, args.ReqID){
-			kv.ack[args.Id] = args.ReqID   //记录reqId 表示成功处理
-		}	
+		if !kv.CheckDup(args.Id, args.ReqID) {
+			kv.ack[args.Id] = args.ReqID //记录reqId 表示成功处理
+		}
 		kv.mu.Unlock()
 	}
 
@@ -117,7 +116,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	entry := Op{Kind:args.Op,Key:args.Key,Value:args.Value,Id:args.Id,ReqId:args.ReqID}
+	entry := Op{Kind: args.Op, Key: args.Key, Value: args.Value, Id: args.Id, ReqId: args.ReqID}
 	ok := kv.AppendEntryToLog(entry)
 	if !ok {
 		reply.WrongLeader = true
@@ -159,7 +158,7 @@ func (kv *KVServer) Apply(args Op) {
 		kv.db[args.Key] += args.Value
 	}
 	kv.ack[args.Id] = args.ReqId
-	
+
 }
 
 //
@@ -190,15 +189,13 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.ack = make(map[int64]int)
 	kv.result = make(map[int]chan Op)
 	kv.applyCh = make(chan raft.ApplyMsg)
-	kv.rf = raft.Make(servers, me, persister, kv.applyCh)   //这里很关键 得到 所有的server 自己的序号 persistent 保存 参数 和 applyChannel
+	kv.rf = raft.Make(servers, me, persister, kv.applyCh) //这里很关键 得到 所有的server 自己的序号 persistent 保存 参数 和 applyChannel
 
-
-
-	go func(){  //需要server端始终运行。来接受命令，处理msg
-		for{
-			//首先 拿取 msg	
+	go func() { //需要server端始终运行。来接受命令，处理msg
+		for {
+			//首先 拿取 msg
 			msg := <-kv.applyCh
-			if msg.UseSnapshot{    //当收到snap的msg时候，解压得到index和term，制作db 和 ack。这个是上线后初始化一个server的时候用的
+			if msg.UseSnapshot { //当收到snap的msg时候，解压得到index和term，制作db 和 ack。这个是上线后初始化一个server的时候用的
 				var LastIncludedIndex int
 				var LastIncludedTerm int
 
@@ -213,30 +210,30 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 				d.Decode(&kv.db)
 				d.Decode(&kv.ack)
 				kv.mu.Unlock()
-			}else{
+			} else {
 				//分离op
 				op := msg.Command.(Op)
 				kv.mu.Lock()
 
 				//看看这个 是否已经被加入ack
-				if !kv.CheckDup(op.Id,op.ReqId) {
+				if !kv.CheckDup(op.Id, op.ReqId) {
 					kv.Apply(op)
 				}
 
 				//得到那个op的chan
-				ch,ok := kv.result[msg.CommandIndex ]
+				ch, ok := kv.result[msg.CommandIndex]
 				if ok {
 					//反正确保是空的
 					select {
-					case <-kv.result[msg.CommandIndex ]:
+					case <-kv.result[msg.CommandIndex]:
 					default:
 					}
 					ch <- op
 				} else {
-					kv.result[msg.CommandIndex ] = make(chan Op, 1)
+					kv.result[msg.CommandIndex] = make(chan Op, 1)
 				}
 
-				//当log存储的大小超过限制   we need snapshot
+				//当log存储的大小超过限制   we need snapshot   记录关键信息
 				if maxraftstate != -1 && kv.rf.GetPerisistSize() > maxraftstate {
 					w := new(bytes.Buffer)
 					e := gob.NewEncoder(w)
@@ -244,14 +241,13 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 					e.Encode(kv.ack)
 					data := w.Bytes()
 					//开启一个snapshotting  消除自己的log
-					go kv.rf.StartSnapshot(data,msg.CommandIndex)
+					go kv.rf.StartSnapshot(data, msg.CommandIndex)
 				}
 				kv.mu.Unlock()
 			}
 		}
 
 	}()
-
 
 	return kv
 }

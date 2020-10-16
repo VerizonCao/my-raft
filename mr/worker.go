@@ -83,6 +83,11 @@ func (w *worker) doMapTask(t Task) {
 		return
 	}
 
+	//3 步
+	//1 根据file来得到kv pairs
+	//2 根据key hash分配到不同的reducer内
+	//3 对于每个reducer的任务，写入到文件名字为 taskId和reducerId内。
+
 	kvs := w.mapf(t.FileName, string(contents))
 	reduces := make([][]KeyValue, t.NReduce)
 	for _, kv := range kvs {
@@ -112,10 +117,10 @@ func (w *worker) doMapTask(t Task) {
 
 }
 
+//根据 file的id和seq，
 func (w *worker) doReduceTask(t Task) {
-	//根据task的index来得到读取哪些文件 组合成为一个key和所有的values
 	//结果放入 mr-out-X  有几个reduce就有几个out
-	maps := make(map[string][]string) //string和string的[] 里面放了values
+	maps := make(map[string][]string)
 	//对于每个map的结果
 	for idx := 0; idx < t.NMaps; idx++ {
 		//得到名字

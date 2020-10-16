@@ -61,23 +61,6 @@ type ShardKV struct {
 	timer           *time.Timer        //定期来check config 变动  修改内容
 }
 
-func (kv *ShardKV) opt(req interface{}) (bool, interface{}) { //同步raft
-	op := Op{
-		Command: req,                         //请求数据
-		Ch:      make(chan (interface{}), 1), //日志提交chan
-	}
-	_, _, isLeader := kv.rf.Start(op) //写入Raft
-	if !isLeader {                    //判定是否是leader
-		return false, nil
-	}
-	select {
-	case resp := <-op.Ch:
-		return true, resp
-	case <-time.After(time.Millisecond * 1000): //超时
-	}
-	return false, nil
-}
-
 func (kv *ShardKV) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
 	ok, value := kv.opt(*args)
@@ -112,6 +95,23 @@ func (kv *ShardKV) DeleteShards(req *ReqDeleteShared, resp *RespDeleteShared) {
 			kv.opt(*req)
 		}
 	}
+}
+
+func (kv *ShardKV) opt(req interface{}) (bool, interface{}) { //同步raft
+	op := Op{
+		Command: req,                         //请求数据
+		Ch:      make(chan (interface{}), 1), //日志提交chan
+	}
+	_, _, isLeader := kv.rf.Start(op) //写入Raft
+	if !isLeader {                    //判定是否是leader
+		return false, nil
+	}
+	select {
+	case resp := <-op.Ch:
+		return true, resp
+	case <-time.After(time.Millisecond * 1000): //超时
+	}
+	return false, nil
 }
 
 //
@@ -295,7 +295,7 @@ func (kv *ShardKV) onApply(applyMsg raft.ApplyMsg) {
 
 		}
 		select {
-		case opt.Ch <- resp: //回复给client
+		case opt.Ch <- resp: //回复给server
 		default:
 		}
 

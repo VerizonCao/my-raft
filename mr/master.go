@@ -66,6 +66,7 @@ func (m *Master) schedule() {
 	}
 	finish := true
 
+	//根据任务属性来判断
 	for index, t := range m.taskStats {
 		switch t.Status {
 		case TaskStatusReady:
@@ -156,7 +157,7 @@ func (m *Master) initMapTask() {
 }
 
 func (m *Master) tickSchedule() { //选择一个schedule
-	//无限循环  知道结束
+	//无限循环  直到结束
 	for !m.Done() {
 		go m.schedule()
 		time.Sleep(ScheduleInterval) //休息一下
@@ -199,7 +200,7 @@ func (m *Master) ReportTask(args *ReportTaskArgs, reply *ReportTaskReply) error 
 
 }
 
-//want to get atask
+//want to get a task
 func (m *Master) GetOneTask(args *TaskArgs, reply *TaskReply) error {
 	task := <-m.taskCh
 	reply.Task = &task
